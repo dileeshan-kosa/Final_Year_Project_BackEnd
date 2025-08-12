@@ -1,0 +1,45 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+
+# Truffle build artifacts
+/blockchain/build/
+blockchain/build/contracts/
+
+# AWS credentials (if stored locally)
+.aws/
+
+# Cache
+.cache/
+.tmp/
+
+# Coverage
+coverage/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Backup files
+*.bak
+*.tmp
