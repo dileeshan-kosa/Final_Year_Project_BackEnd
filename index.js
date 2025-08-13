@@ -49,10 +49,18 @@ const loginFingerPrintRoutes = require("./routes/loginFingerprint");
 const voteFingerpritRoutes = require("./routes/voteFingerprint");
 const { SerialPort } = require("serialport");
 const { ReadlineParser } = require("@serialport/parser-readline");
+const { toBytes32 } = require("./utils/stringConverters");
 const { contractABI } = require("./contract/contractABI");
 const Web3 = require("web3");
 
 const app = express();
+
+// --- Secret Key Setup ---
+const secretKey = process.env.SECRET_KEY?.padEnd(32, "0"); // Pad the key to 32 bytes
+if (!secretKey) {
+  throw new Error("SECRET_KEY environment variable is not set");
+}
+
 // app.use(express.json());
 app.use(
   cors({
@@ -81,6 +89,14 @@ connectDB().then(() => {
     new Web3.providers.WebsocketProvider("ws://127.0.0.1:7545")
   );
 
+  web3.eth.net
+    .isListening()
+    .then(() => console.log("✅ Connected to Ganache via WebSocket"))
+    .catch((err) => {
+      console.error("❌ Failed to connect to Ganache:", err);
+      return;
+    });
+
   // Contract address from env
   const contractAddress = process.env.CONTRACT_ADDRESS;
   if (!contractAddress) {
@@ -89,29 +105,34 @@ connectDB().then(() => {
 
   const voteContract = new web3.eth.Contract(contractABI, contractAddress);
 
-  //Event listener for VoteAdded event
-  voteContract.events
-    .VoteAdded()
-    .on("connected", (subscriptionId) => {
-      console.log(
-        "Subscribed to VoteAdded events. Subscription ID:",
-        subscriptionId
-      );
-    })
-    // .on("data", async (event) => {
-    //   try {
-    //     const { cryptographicKey, encryptedData, Decodekey } =
-    //       event.returnValues;
+  // Quick contract read to confirm interaction works
+  voteContract.methods
+    .getVoteCount()
+    .call()
+    .then((count) => console.log(`📊 Current vote count: ${count}`))
+    .catch((err) => console.error("❌ Error calling getVoteCount:", err));
 
-    //     // const backupData = {
-    //     //   cryptographicKey,
-    //     //   encryptedData,
-    //     //   Decodekey,
-    //     //   timestamp: Date.now(),
-    //     //   txHash: event.transactionHash,
-    //     // };
-    //   } catch (err) {
-    //     console.error("Backup failed:", err);
-    //   }
-    // });
+  //Event listener for VoteAdded event
+  voteContract.events.VoteAdded().on("connected", (subscriptionId) => {
+    console.log(
+      "Subscribed to VoteAdded events. Subscription ID:",
+      subscriptionId
+    );
+  });
+  // .on("data", async (event) => {
+  //   try {
+  //     const { cryptographicKey, encryptedData, Decodekey } =
+  //       event.returnValues;
+
+  //     // const backupData = {
+  //     //   cryptographicKey,
+  //     //   encryptedData,
+  //     //   Decodekey,
+  //     //   timestamp: Date.now(),
+  //     //   txHash: event.transactionHash,
+  //     // };
+  //   } catch (err) {
+  //     console.error("Backup failed:", err);
+  //   }
+  // });
 });
