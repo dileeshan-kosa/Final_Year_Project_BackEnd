@@ -24,4 +24,22 @@ function encrypt(text, secretKey) {
   }
 }
 
+// AES Decryption Function
+function decrypt(Data, iv, secretKey) {
+  try {
+    const algorithm = "aes-256-cbc"; // AES algorithm with CBC mode
+    const decipher = crypto.createDecipheriv(
+      algorithm,
+      Buffer.from(secretKey),
+      Buffer.from(iv, "hex")
+    ); // Create decipher
+    let decrypted = decipher.update(encryptedData, "hex", "utf8"); // Decrypt the text
+    decrypted += decipher.final("utf8"); // Finalize decryption
+    console.log("dencrypted_combined: ", decrypted);
+    return decrypted; // Return the original text
+  } catch (error) {
+    console.log("error in decrypt: ", error);
+  }
+}
+
 module.exports = { encrypt, hmacSha256 };

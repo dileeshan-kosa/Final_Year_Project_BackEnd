@@ -113,26 +113,28 @@ connectDB().then(() => {
     .catch((err) => console.error("❌ Error calling getVoteCount:", err));
 
   //Event listener for VoteAdded event
-  voteContract.events.VoteAdded().on("connected", (subscriptionId) => {
-    console.log(
-      "Subscribed to VoteAdded events. Subscription ID:",
-      subscriptionId
-    );
-  });
-  // .on("data", async (event) => {
-  //   try {
-  //     const { cryptographicKey, encryptedData, Decodekey } =
-  //       event.returnValues;
+  voteContract.events
+    .VoteAdded()
+    .on("connected", (subscriptionId) => {
+      console.log(
+        "Subscribed to VoteAdded events. Subscription ID:",
+        subscriptionId
+      );
+    })
+    .on("data", async (event) => {
+      try {
+        const { cryptographicKey, encryptedData, Decodekey } =
+          event.returnValues;
 
-  //     // const backupData = {
-  //     //   cryptographicKey,
-  //     //   encryptedData,
-  //     //   Decodekey,
-  //     //   timestamp: Date.now(),
-  //     //   txHash: event.transactionHash,
-  //     // };
-  //   } catch (err) {
-  //     console.error("Backup failed:", err);
-  //   }
-  // });
+        // const backupData = {
+        //   cryptographicKey,
+        //   encryptedData,
+        //   Decodekey,
+        //   timestamp: Date.now(),
+        //   txHash: event.transactionHash,
+        // };
+      } catch (err) {
+        console.error("Backup failed:", err);
+      }
+    });
 });
