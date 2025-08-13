@@ -23,11 +23,11 @@ const voteContract = new web3.eth.Contract(contractABI, contractAddress);
 const voteControlWithBlockchain = {
   createBlockchainDetails: async (req, res) => {
     try {
-      console.log("📥 Incoming vote:", req.body);
+      // console.log("📥 Incoming vote:", req.body);
       const { hashNIC, hashFingerPrint, encryptedVote } = req.body;
 
       if (!hashNIC || !hashFingerPrint || !encryptedVote) {
-        console.error("Missing data");
+        // console.error("Missing data");
         throw new Error("Missing Data");
       }
 
