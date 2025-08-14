@@ -2,7 +2,8 @@ const router = require("../routes");
 const Web3 = require("web3");
 const { contractABI } = require("../contract/contractABI");
 const { toBytes32, toString } = require("../utils/stringConverters");
-const { encrypt, hmacSha256 } = require("../utils/encryption");
+const { encrypt, hmacSha256, decrypt } = require("../utils/encryption");
+const { checkValidity } = require("../utils/checkValidity");
 
 // --- Secret Key Setup ---
 const secretKey = process.env.SECRET_KEY?.padEnd(32, "0");
@@ -20,6 +21,7 @@ if (!contractAddress) {
 
 const voteContract = new web3.eth.Contract(contractABI, contractAddress);
 
+//add votes to blockchain
 const voteControlWithBlockchain = {
   createBlockchainDetails: async (req, res) => {
     try {
@@ -62,6 +64,47 @@ const voteControlWithBlockchain = {
       res.status(500).json({ error: err.message });
     }
   },
-};
 
+  //get votes from blockchain
+  getVotesDetails: async (req, res) => {
+    try {
+      const voteCount = await voteContract.methods.getVoteCount().call();
+
+      let votes = [];
+      let encryptedVoteArray = [];
+
+      for (let i = 0; i < voteCount; i++) {
+        const vote = await voteContract.methods.votes(i).call();
+        votes.push({
+          cryptographicKey: vote.cryptographicKey,
+          encryptedData: vote.encryptedData,
+          Decodekey: vote.Decodekey,
+        });
+      }
+      for (let index = 0; index < votes.length; index++) {
+        const { cryptographicKey, encryptedData, Decodekey } = votes[index];
+
+        // console.log("cryptographicKey:", cryptographicKey);
+        // console.log("encryptedData:", encryptedData);
+        // console.log("Decodekey: ", Decodekey);
+
+        const combinedKey = decrypt(encryptedData, Decodekey, secretKey);
+        console.log("decryptedcombined key : ", combinedKey);
+
+        const validation = checkValidity(combinedKey, cryptographicKey);
+        if (!validation) {
+          throw new Error("Data tampered");
+        }
+
+        const encryptedVote = combinedKey.split("/")[0];
+        encryptedVoteArray.push(encryptedVote);
+      }
+
+      res.status(200).json({ encryptedVoteArray });
+      return votes;
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+};
 module.exports = voteControlWithBlockchain;

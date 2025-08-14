@@ -25,7 +25,7 @@ function encrypt(text, secretKey) {
 }
 
 // AES Decryption Function
-function decrypt(Data, iv, secretKey) {
+function decrypt(encryptedData, iv, secretKey) {
   try {
     const algorithm = "aes-256-cbc"; // AES algorithm with CBC mode
     const decipher = crypto.createDecipheriv(
@@ -42,4 +42,4 @@ function decrypt(Data, iv, secretKey) {
   }
 }
 
-module.exports = { encrypt, hmacSha256 };
+module.exports = { encrypt, hmacSha256, decrypt };
