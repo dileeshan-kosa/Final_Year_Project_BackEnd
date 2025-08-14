@@ -16,6 +16,7 @@ router.post("/signin", adminSignInController);
 
 //voter signIn and signOut
 const voterSignInController = require("../controller/voterSignIn");
+const voteControlWithBlockchain = require("../controller/voteControlWithBlockchain");
 
 router.post("/signupvoter", voterSignInController);
 
@@ -35,6 +36,11 @@ router.post("/manage-voters", manageVoterDetails.createVoterDetails);
 // router.get("/get-managemodule", manageModuleCtrl.getModules);
 router.get("/get-voterdetails", manageVoterDetails.getVoders);
 router.get("/get-idvoters", manageVoterDetails.getVotersID);
+
+// new api call vote add to the blockchain
+router.post("/sendVote", voteControlWithBlockchain.createBlockchainDetails);
+//new api call get vote in to the blockchain
+router.get("/getVotes", voteControlWithBlockchain.getVotesDetails);
 
 //new api call manage Candidates
 router.post("/add-candidates", manageCandidateDetails.createCandidateDetaila);
