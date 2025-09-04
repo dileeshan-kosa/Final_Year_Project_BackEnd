@@ -73,6 +73,26 @@ const manageVoterDetails = {
     }
   },
 
-  // add fingerprint controller here
+  // get all voter details.
+  getallVoterdetails: async (req, res) => {
+    try {
+      const voterTables = await voterModel.find();
+      console.log("All VoterData Fetched");
+
+      res.status(200).json({
+        message: "All voter details fetched successfully",
+        data: voterTables,
+        success: true,
+        error: false,
+      });
+    } catch (err) {
+      console.log(err);
+      res.status(400).json({
+        message: err.message || err,
+        error: true,
+        success: false,
+      });
+    }
+  },
 };
 module.exports = manageVoterDetails;

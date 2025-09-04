@@ -30,12 +30,15 @@ router.get("/capture-fingerprint", manageVoterDetails.getVoders);
 
 //new api call Manage Voters
 router.post("/manage-voters", manageVoterDetails.createVoterDetails);
-
+    
 // router.post("/get-votersdetails/:id", manageVoterDetails.getIdVoter);
 
 // router.get("/get-managemodule", manageModuleCtrl.getModules);
 router.get("/get-voterdetails", manageVoterDetails.getVoders);
 router.get("/get-idvoters", manageVoterDetails.getVotersID);
+
+// Get full details on voters.
+router.get("/getsfulldetails-voters", manageVoterDetails.getallVoterdetails)
 
 // new api call vote add to the blockchain
 router.post("/sendVote", voteControlWithBlockchain.createBlockchainDetails);

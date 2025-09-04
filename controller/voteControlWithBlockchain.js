@@ -56,12 +56,11 @@ const voteControlWithBlockchain = {
         .addVote(cryptographicKey, encryptedData, Decodekey)
         .send({
           from: accounts[0],
-          gas: 500000,
+          gas: 5000000,
         });
-
       res.status(200).json({ message: "Vote added to blockchain" });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: err.message }); 
     }
   },
 
@@ -94,6 +93,7 @@ const voteControlWithBlockchain = {
         const validation = checkValidity(combinedKey, cryptographicKey);
         if (!validation) {
           throw new Error("Data tampered");
+          
         }
 
         const encryptedVote = combinedKey.split("/")[0];
