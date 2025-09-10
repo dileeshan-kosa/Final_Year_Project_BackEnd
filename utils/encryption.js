@@ -35,7 +35,7 @@ function decrypt(encryptedData, iv, secretKey) {
     ); // Create decipher
     let decrypted = decipher.update(encryptedData, "hex", "utf8"); // Decrypt the text
     decrypted += decipher.final("utf8"); // Finalize decryption
-    console.log("dencrypted_combined: ", decrypted);
+    // console.log("dencrypted_combined: ", decrypted);
     return decrypted; // Return the original text
   } catch (error) {
     console.log("error in decrypt: ", error);

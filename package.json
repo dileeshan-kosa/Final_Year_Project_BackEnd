@@ -24,6 +24,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.9.6",
     "nodemon": "^3.1.9",
+    "redis": "^5.5.6",
     "serialport": "^13.0.0",
     "web3": "^1.10.0"
   }

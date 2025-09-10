@@ -60,11 +60,73 @@ const voteControlWithBlockchain = {
         });
       res.status(200).json({ message: "Vote added to blockchain" });
     } catch (err) {
-      res.status(500).json({ error: err.message }); 
+      res.status(500).json({ error: err.message });
     }
   },
 
   //get votes from blockchain
+  // getVotesDetails: async (req, res) => {
+  //   try {
+  //     const voteCount = await voteContract.methods.getVoteCount().call();
+
+  //     let votes = [];
+  //     let encryptedVoteArray = [];
+
+  //     for (let i = 0; i < voteCount; i++) {
+  //       const vote = await voteContract.methods.votes(i).call();
+  //       votes.push({
+  //         cryptographicKey: vote.cryptographicKey,
+  //         encryptedData: vote.encryptedData,
+  //         Decodekey: vote.Decodekey,
+  //       });
+  //     }
+  //     for (let index = 0; index < votes.length; index++) {
+  //       const { cryptographicKey, encryptedData, Decodekey } = votes[index];
+
+  //       // console.log("cryptographicKey:", cryptographicKey);
+  //       // console.log("encryptedData:", encryptedData);
+  //       // console.log("Decodekey: ", Decodekey);
+
+  //       const combinedKey = decrypt(encryptedData, Decodekey, secretKey);
+  //       // const decryptedvote = decrypt(encryptedData);
+  //       console.log("decryptedcombined key : ", combinedKey);
+
+  //       const validation = checkValidity(combinedKey, cryptographicKey);
+  //       if (!validation) {
+  //         throw new Error("Data tampered");
+  //       }
+
+  //       // ✅ Use colon-based split instead of "/"
+  //       const parts = combinedKey.split(":");
+
+  //       // The vote is always before the first colon
+  //       const encryptedVote = parts[0];
+
+  //       // If you need the rest (NIC hash + fingerprint hash, etc.)
+  //       const remaining = parts.slice(1).join(":");
+
+  //       // 🚨 Remove the trailing "/hash1/hash2" part if it exists
+  //       if (remaining.includes("/")) {
+  //         remaining = remaining.split("/")[0]; // keep only before the first "/"
+  //       }
+
+  //       console.log("🗳️ Encrypted Vote:", encryptedVote);
+  //       console.log("📦 Clean Remaining Data:", remaining);
+
+  //       encryptedVoteArray.push(encryptedVote);
+
+  //       // const encryptedVote = combinedKey.split("/")[0];
+  //       // encryptedVoteArray.push(encryptedVote);
+  //     }
+
+  //     res.status(200).json({ encryptedVoteArray });
+  //     return votes;
+  //   } catch (err) {
+  //     res.status(500).json({ error: err.message });
+  //   }
+  // },
+
+  // get votes from blockchain
   getVotesDetails: async (req, res) => {
     try {
       const voteCount = await voteContract.methods.getVoteCount().call();
@@ -80,12 +142,9 @@ const voteControlWithBlockchain = {
           Decodekey: vote.Decodekey,
         });
       }
+
       for (let index = 0; index < votes.length; index++) {
         const { cryptographicKey, encryptedData, Decodekey } = votes[index];
-
-        // console.log("cryptographicKey:", cryptographicKey);
-        // console.log("encryptedData:", encryptedData);
-        // console.log("Decodekey: ", Decodekey);
 
         const combinedKey = decrypt(encryptedData, Decodekey, secretKey);
         console.log("decryptedcombined key : ", combinedKey);
@@ -93,17 +152,59 @@ const voteControlWithBlockchain = {
         const validation = checkValidity(combinedKey, cryptographicKey);
         if (!validation) {
           throw new Error("Data tampered");
-          
         }
 
-        const encryptedVote = combinedKey.split("/")[0];
-        encryptedVoteArray.push(encryptedVote);
+        // split using colon (safe because base64 does NOT contain ':')
+        const parts = combinedKey.split(":");
+        const encryptedVote = parts[0]; // the frontend vote
+        let remaining = parts.slice(1).join(":"); // the rest (may contain base64 and hashes)
+
+        // --- Robust removal of trailing "/hash1/hash2" ---
+        // Find last two slashes and check if the two trailing pieces are hex hashes (adjust length if needed)
+        let cleanedRemaining = remaining;
+        let extractedHash1 = null;
+        let extractedHash2 = null;
+
+        const lastSlash = remaining.lastIndexOf("/");
+        const secondLastSlash = remaining.lastIndexOf("/", lastSlash - 1);
+
+        if (lastSlash !== -1 && secondLastSlash !== -1) {
+          const maybeHash1 = remaining.slice(secondLastSlash + 1, lastSlash);
+          const maybeHash2 = remaining.slice(lastSlash + 1);
+
+          // Validate they look like hex hashes (here we expect 64 hex chars; change {64} if different)
+          const isHex64 = (s) => /^[0-9a-fA-F]{64}$/.test(s);
+
+          if (isHex64(maybeHash1) && isHex64(maybeHash2)) {
+            // remove "/hash1/hash2" from remaining
+            cleanedRemaining = remaining.slice(0, secondLastSlash);
+            extractedHash1 = maybeHash1;
+            extractedHash2 = maybeHash2;
+          }
+        }
+
+        // (Optional) simpler regex approach:
+        // cleanedRemaining = remaining.replace(/\/[0-9a-fA-F]{64}\/[0-9a-fA-F]{64}$/, '');
+
+        console.log("🗳️ Encrypted Vote:", encryptedVote);
+        console.log("📦 Cleaned Remaining Data:", cleanedRemaining);
+        if (extractedHash1 && extractedHash2) {
+          console.log("🔏 Hash1:", extractedHash1);
+          console.log("🔏 Hash2:", extractedHash2);
+        }
+
+        // push full object so you can inspect or return hashes too
+        encryptedVoteArray.push({
+          encryptedVote,
+          remaining: cleanedRemaining,
+          hash1: extractedHash1,
+          hash2: extractedHash2,
+        });
       }
 
-      res.status(200).json({ encryptedVoteArray });
-      return votes;
+      return res.status(200).json({ votes: encryptedVoteArray });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: err.message });
     }
   },
 };

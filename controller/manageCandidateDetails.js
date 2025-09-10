@@ -41,6 +41,7 @@ const manageCandidateDetails = {
     try {
         let candidatetable = await candidateTable.find()
         console.log("All Candidate Data Fetched")
+        
         res.send(candidatetable)
         console.log("Module Dataa", candidatetable)
     } catch (err) {
