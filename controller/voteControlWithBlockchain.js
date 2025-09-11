@@ -4,6 +4,7 @@ const { contractABI } = require("../contract/contractABI");
 const { toBytes32, toString } = require("../utils/stringConverters");
 const { encrypt, hmacSha256, decrypt } = require("../utils/encryption");
 const { checkValidity } = require("../utils/checkValidity");
+const { decryptVote } = require("../utils/rsaDecrypt");
 
 // --- Secret Key Setup ---
 const secretKey = process.env.SECRET_KEY?.padEnd(32, "0");
@@ -162,8 +163,8 @@ const voteControlWithBlockchain = {
         // --- Robust removal of trailing "/hash1/hash2" ---
         // Find last two slashes and check if the two trailing pieces are hex hashes (adjust length if needed)
         let cleanedRemaining = remaining;
-        let extractedHash1 = null;
-        let extractedHash2 = null;
+        // let extractedHash1 = null;
+        // let extractedHash2 = null;
 
         const lastSlash = remaining.lastIndexOf("/");
         const secondLastSlash = remaining.lastIndexOf("/", lastSlash - 1);
@@ -178,27 +179,25 @@ const voteControlWithBlockchain = {
           if (isHex64(maybeHash1) && isHex64(maybeHash2)) {
             // remove "/hash1/hash2" from remaining
             cleanedRemaining = remaining.slice(0, secondLastSlash);
-            extractedHash1 = maybeHash1;
-            extractedHash2 = maybeHash2;
+            // extractedHash1 = maybeHash1;
+            // extractedHash2 = maybeHash2;
           }
         }
+        const encryptedVotes = `${encryptedVote}:${cleanedRemaining}`;
 
-        // (Optional) simpler regex approach:
-        // cleanedRemaining = remaining.replace(/\/[0-9a-fA-F]{64}\/[0-9a-fA-F]{64}$/, '');
+        // ⬇️ NEW: decrypt it using your private key
+        const decryptedVote = decryptVote(encryptedVote);
 
-        console.log("🗳️ Encrypted Vote:", encryptedVote);
-        console.log("📦 Cleaned Remaining Data:", cleanedRemaining);
-        if (extractedHash1 && extractedHash2) {
-          console.log("🔏 Hash1:", extractedHash1);
-          console.log("🔏 Hash2:", extractedHash2);
-        }
+        // ✅ Single console output in required format
+        console.log("....................................................")
+        // console.log("Only Vote:", encryptedVotes);
+        console.log("....................................................")
+        console.log("Decrypted Vote:", decryptedVote);
 
         // push full object so you can inspect or return hashes too
         encryptedVoteArray.push({
-          encryptedVote,
-          remaining: cleanedRemaining,
-          hash1: extractedHash1,
-          hash2: extractedHash2,
+          encryptedVotes,
+          // cleanedRemaining,
         });
       }
 

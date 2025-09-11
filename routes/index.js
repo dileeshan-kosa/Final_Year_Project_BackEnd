@@ -17,8 +17,14 @@ router.post("/signin", adminSignInController);
 //voter signIn and signOut
 const voterSignInController = require("../controller/voterSignIn");
 const voteControlWithBlockchain = require("../controller/voteControlWithBlockchain");
+const { publicKeyPem } = require("../utils/rsaKeys");
 
 router.post("/signupvoter", voterSignInController);
+
+//Send public key to frontend
+router.get("/public-key", (req, res) => {
+  res.json({ publicKey: publicKeyPem });
+});
 
 //get admin details
 router.get("/admin-details", authToken, adminDetailsController);
@@ -30,7 +36,7 @@ router.get("/capture-fingerprint", manageVoterDetails.getVoders);
 
 //new api call Manage Voters
 router.post("/manage-voters", manageVoterDetails.createVoterDetails);
-    
+
 // router.post("/get-votersdetails/:id", manageVoterDetails.getIdVoter);
 
 // router.get("/get-managemodule", manageModuleCtrl.getModules);
@@ -38,7 +44,7 @@ router.get("/get-voterdetails", manageVoterDetails.getVoders);
 router.get("/get-idvoters", manageVoterDetails.getVotersID);
 
 // Get full details on voters.
-router.get("/getsfulldetails-voters", manageVoterDetails.getallVoterdetails)
+router.get("/getsfulldetails-voters", manageVoterDetails.getallVoterdetails);
 
 // new api call vote add to the blockchain
 router.post("/sendVote", voteControlWithBlockchain.createBlockchainDetails);
