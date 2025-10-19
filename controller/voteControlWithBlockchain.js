@@ -392,12 +392,53 @@ const voteControlWithBlockchain = {
         console.log("🔎 Queue processing finished.");
       }
 
-      return res.status(200).json({ votes: results });
+      // After processing (or if another process was already running), fetch current candidate counts to return:
+      const candidateList = await candidateTable.find();
 
-      // return res.status(200).json({ votes: encryptedVoteArray });
+      // Use SCAN (non-blocking) to discover vote keys: pattern Votes:ELECTION_ID:*
+      let cursor = "0";
+      let keys = [];
+      const pattern = `Votes:${ELECTION_ID}:*`;
+      do {
+        const { cursor: nextCursor, keys: foundKeys } = await redisClient.scan(
+          cursor,
+          "MATCH",
+          pattern,
+          "COUNT",
+          100
+        );
+        cursor = nextCursor;
+        keys = keys.concat(foundKeys || []);
+        //console.log("Keyyyy", keys);
+      } while (cursor !== "0");
+
+      const redisCounts = {};
+
+      for (const key of keys) {
+        const value = await redisClient.get(key);
+        redisCounts[key] = parseInt(value, 10) || 0;
+        //console.log("redis count check", redisCounts);
+      }
+
+      // Map DB candidates to counts (ensures candidate present even if 0 votes)
+      const result = candidateList.map((c) => {
+        const safeName = c.name.replace(/\s+/g, "_");
+        const redisKey = `Votes:${ELECTION_ID}:${safeName}`;
+        return {
+          name: c.name,
+          number: c.number,
+          image: c.image,
+          votes: redisCounts[redisKey] || 0,
+        };
+      });
+
+      //console.log("\n📊 Returning results:", results);
+      return res.status(200).json(result);
+
     } catch (err) {
       // return res.status(500).json({ error: err.message });
       console.error("❌ Error in getVotesDetails:", err.message);
+      processingLock = false;
       return res.status(500).json({ error: err.message });
     }
   },

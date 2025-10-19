@@ -55,4 +55,7 @@ router.get("/getVotes", voteControlWithBlockchain.getVotesDetails);
 router.post("/add-candidates", manageCandidateDetails.createCandidateDetaila);
 router.get("/get-candidates", manageCandidateDetails.getCandidates);
 
+// new api call get election vote count (block-chaine votes)
+router.get("/get-blockchainVotes", voteControlWithBlockchain.getVotesDetails);
+
 module.exports = router;
