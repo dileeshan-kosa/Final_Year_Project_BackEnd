@@ -52,7 +52,8 @@ const { ReadlineParser } = require("@serialport/parser-readline");
 const { toBytes32 } = require("./utils/stringConverters");
 const { contractABI } = require("./contract/contractABI");
 const Web3 = require("web3");
-const redisClient = require("./config/redis")
+const redisClient = require("./config/redis");
+const { uploadToS3 } = require("./utils/aws");
 
 const app = express();
 
