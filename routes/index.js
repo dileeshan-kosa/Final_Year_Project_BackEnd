@@ -18,6 +18,7 @@ router.post("/signin", adminSignInController);
 const voterSignInController = require("../controller/voterSignIn");
 const voteControlWithBlockchain = require("../controller/voteControlWithBlockchain");
 const { publicKeyPem } = require("../utils/rsaKeys");
+const ReAwsVotes = require("../controller/awsVotesRecover");
 
 router.post("/signupvoter", voterSignInController);
 
@@ -57,5 +58,8 @@ router.get("/get-candidates", manageCandidateDetails.getCandidates);
 
 // new api call get election vote count (block-chaine votes)
 router.get("/get-blockchainVotes", voteControlWithBlockchain.getVotesDetails);
+
+//new api call get backup election votes AWS S3 bucket
+router.get("/get-awsBackupVotes", ReAwsVotes.recoverAwsVotes);
 
 module.exports = router;
