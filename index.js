@@ -128,6 +128,28 @@ connectDB().then(() => {
         const { cryptographicKey, encryptedData, Decodekey } =
           event.returnValues;
 
+        // 🗳️ Define election folder name (can make this dynamic later)
+        const electionName = "presidential-2025"; // <--- Change this as needed
+
+        // ✅ Create backup payload
+        const backupData = {
+          cryptographicKey,
+          encryptedData,
+          Decodekey,
+          timestamp: Date.now(),
+          txHash: event.transactionHash,
+        };
+
+        // ✅ Generate unique filename
+        const fileName = `vote_${event.transactionHash}.json`;
+
+        // ✅ Upload to AWS S3 under specific election folder
+        await uploadToS3(backupData, fileName, electionName);
+
+        console.log(
+          `✅ Backup completed for TX: ${event.transactionHash} (Election: ${electionName})`
+        );
+
         // const backupData = {
         //   cryptographicKey,
         //   encryptedData,
