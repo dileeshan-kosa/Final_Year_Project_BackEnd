@@ -86,27 +86,72 @@ const uploadToS3 = async (data, fileName, electionName) => {
     console.error("❌ S3 Upload failed:", err);
   }
 
-  /**
-   * Read (download) a JSON file from S3 and convert it to an object
-   * @param {String} fileName - The file name without extension
-   * @param {String} electionName - Folder name
-   */
+  // /**
+  //  * Read (download) a JSON file from S3 and convert it to an object
+  //  * @param {String} fileName - The file name without extension
+  //  * @param {String} electionName - Folder name
+  //  */
 
-  const redFromS3 = async (fileName, electionName) => {
+  // const redFromS3 = async (fileName, electionName) => {
+  //   try {
+  //     const params = {
+  //       Bucket: process.env.AWS_BUCKET_NAME,
+  //       Key: `${electionName}/${fileName}.json`,
+  //     };
+
+  //     const command = new GetObjectCommand(params);
+  //     const data = await s3.send(command);
+
+  //     const fileContent = await streamToString(data.Body);
+  //     console.log(`📥 Downloaded file from S3: ${fileName}.json`);
+  //     return JSON.parse(fileContent);
+  //   } catch (err) {
+  //     console.error("❌ S3 Read failed:", err);
+  //   }
+  // };
+
+  // Get all vote backup files from S3 for a given election and return their parsed JSON content
+  const getAllVotesFromBackup = async (electionName) => {
+    const bucket = process.env.AWS_BUCKET_NAME;
+    const prefix = `${electionName}/`;
+
     try {
-      const params = {
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Key: `${electionName}/${fileName}.json`,
-      };
+      // Step 1: List all objects under the election folder
+      const listCommand = new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+      });
 
-      const command = new GetObjectCommand(params);
-      const data = await s3.send(command);
+      const listedObjects = await s3.send(listCommand);
+      if (!listedObjects.Contents) {
+        console.log("⚠️ No votes found in S3 for this election.");
+        return [];
+      }
 
-      const fileContent = await streamToString(data.Body);
-      console.log(`📥 Downloaded file from S3: ${fileName}.json`);
-      return JSON.parse(fileContent);
+      const results = [];
+
+      // Step 2: Download each file and parse JSON
+      for (const obj of listedObjects.Contents) {
+        const getCommand = new GetObjectCommand({
+          Bucket: bucket,
+          Key: obj.Key,
+        });
+
+        const response = await s3.send(getCommand);
+        const content = await streamToString(response.Body);
+
+        results.push({
+          key: obj.Key,
+          data: JSON.parse(content),
+        });
+        console.log(
+          `📦 Retrieved ${results.length} vote files from ${electionName}`
+        );
+        return results;
+      }
     } catch (err) {
-      console.error("❌ S3 Read failed:", err);
+      console.error("❌ Error fetching files from S3:", err);
+      return [];
     }
   };
 };
