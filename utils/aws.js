@@ -37,6 +37,9 @@
 
 // module.exports = { uploadToS3 };
 
+// Prevent EventEmitter memory leak warnings
+require("events").EventEmitter.defaultMaxListeners = 25;
+
 const {
   S3Client,
   PutObjectCommand,
@@ -122,11 +125,12 @@ const getAllVotesFromBackup = async (electionName) => {
         key: obj.Key,
         data: JSON.parse(content),
       });
-      console.log(
-        `📦 Retrieved ${results.length} vote files from ${electionName}`
-      );
-      return results;
     }
+    // console.log("results Array", results);
+    console.log(
+      `📦 Retrieved ${results.length} vote files from ${electionName}`
+    );
+    return results;
   } catch (err) {
     console.error("❌ Error fetching files from S3:", err);
     return [];
