@@ -67,6 +67,7 @@ const ReAwsVotes = {
   recoverAwsVotes: async (req, res) => {
     try {
       const electionName = "presidential-2025";
+      const year = "2025";
       const votes = await getAllVotesFromBackup(electionName);
 
       if (!votes || votes.length === 0) {
@@ -138,7 +139,7 @@ const ReAwsVotes = {
         });
       }
 
-      // Final summary output
+      // Step 6 : Final summary output
       console.log("\n📊 Vote Recovery Summary:");
       console.log("[");
       Object.entries(voteCount).forEach(([candidate, count]) => {
@@ -146,10 +147,28 @@ const ReAwsVotes = {
       });
       console.log("]");
 
+      // Step 7 : Compute total
+      const totalVotes = Object.values(voteCount).reduce((a, b) => a + b, 0);
+
+      // Step 8 : Convert mapt to structured array
+      const candidates = Object.entries(voteCount).map(([name, votes]) => ({
+        name,
+        votes,
+        percentage: ((votes / totalVotes) * 100).toFixed(1),
+      }));
+
+      // Step 9: Sort and find winner
+      const sortedCandidates = candidates.sort((a, b) => b.votes - a.votes);
+      const winner =
+        sortedCandidates.length > 0 ? sortedCandidates[0].name : null;
+
       // ✅ Send final response
       return res.status(200).json({
-        message: "Vote recovery successful",
-        results: voteCount,
+        electionName,
+        year: parseInt(year),
+        totalVotes,
+        winner,
+        candidates: sortedCandidates,
       });
     } catch (err) {
       console.error("❌ AWS Recovery Error:", err);
