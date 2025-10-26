@@ -78,9 +78,11 @@ const ReAwsVotes = {
 
       let results = [];
       const uniqueVotes = new Set();
+      const voteCount = {}; // ✅ to count votes per candidate
 
       for (const vote of votes) {
         const { cryptographicKey, encryptedData, Decodekey } = vote.data;
+
         // Avoid duplicate entries
         const combinedKeyRaw = JSON.stringify(vote.data);
         if (uniqueVotes.has(combinedKeyRaw)) continue;
@@ -124,11 +126,31 @@ const ReAwsVotes = {
 
         console.log("✅ Final Decrypted Vote:", decryptedVoteCount);
 
+        //Step 5: Count votes by candidate name instead of binary
+        const candidateName = decryptedVote2?.trim();
+        if (candidateName) {
+          voteCount[candidateName] = (voteCount[candidateName] || 0) + 1;
+        }
+
         results.push({
           key: vote.key,
           decryptedVote: decryptedVoteCount,
         });
       }
+
+      // Final summary output
+      console.log("\n📊 Vote Recovery Summary:");
+      console.log("[");
+      Object.entries(voteCount).forEach(([candidate, count]) => {
+        console.log(`${candidate} -> ${count}`);
+      });
+      console.log("]");
+
+      // ✅ Send final response
+      return res.status(200).json({
+        message: "Vote recovery successful",
+        results: voteCount,
+      });
     } catch (err) {
       console.error("❌ AWS Recovery Error:", err);
       return res.status(500).json({ error: err.message });
