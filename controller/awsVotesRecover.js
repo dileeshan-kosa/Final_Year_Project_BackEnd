@@ -67,7 +67,14 @@ const ReAwsVotes = {
   recoverAwsVotes: async (req, res) => {
     try {
       const electionName = "presidential-2025";
-      const year = "2025";
+
+      // ✅ Extract year dynamically from electionName (e.g., "presidential-2025" → "2025")
+      const yearMatch = electionName.match(/(\d{4})$/);
+      const year = yearMatch ? yearMatch[1] : "Unknown";
+
+      // const votes = await getAllVotesFromBackup(electionName);
+
+      // const year = "2025";
       const votes = await getAllVotesFromBackup(electionName);
 
       if (!votes || votes.length === 0) {

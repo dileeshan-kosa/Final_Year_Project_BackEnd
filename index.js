@@ -129,7 +129,7 @@ connectDB().then(() => {
           event.returnValues;
 
         // 🗳️ Define election folder name (can make this dynamic later)
-        const electionName = "presidential-2025"; // <--- Change this as needed
+        const electionName = "presidential-2024"; // <--- Change this as needed
 
         // ✅ Create backup payload
         const backupData = {
