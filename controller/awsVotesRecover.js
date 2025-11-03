@@ -8,7 +8,7 @@ const secretKey = process.env.SECRET_KEY.padEnd(32, "0"); // Ensure 32-byte key
 const ReAwsVotes = {
   recoverAwsVotes: async (req, res) => {
     try {
-      console.log("request :", req.query);
+      // console.log("request :", req.query);
 
       // Handle dynamic query key (sometimes appears as 'electionName/selectedYear')
       const queryKeys = Object.keys(req.query);
