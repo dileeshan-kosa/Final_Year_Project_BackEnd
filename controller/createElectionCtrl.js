@@ -94,7 +94,8 @@ async function startScheduler() {
     "*/30 * * * * *",
     async () => {
       try {
-        const election = await electionModel.findOne()
+        const election = await electionModel
+          .findOne()
           .sort({ createdAt: -1 })
           .lean();
         if (!election) return;
@@ -121,7 +122,7 @@ async function startScheduler() {
   console.log("🕒 Scheduler started: checking every 30 seconds...");
 }
 
-//---------------- Controller Logic ----------------//
+//---------------- Controller post Logic ----------------//
 const createElectionCtrl = {
   createElection: async (req, res) => {
     try {
@@ -179,7 +180,8 @@ const createElectionCtrl = {
       }
 
       // Prevent creating new election if any active election exists (not completed)
-      const existing = await electionModel.findOne()
+      const existing = await electionModel
+        .findOne()
         .sort({ createdAt: -1 })
         .lean();
       if (existing && existing.status && existing.status !== "completed") {
@@ -218,6 +220,38 @@ const createElectionCtrl = {
         success: false,
         message: "Server error while creating election.",
       });
+    }
+  },
+
+  // === Get latest election (for frontend indicator) ===
+  getLatestElection: async (req, res) => {
+    try {
+      const election = await electionModel
+        .findOne()
+        .sort({ createdAt: -1 })
+        .lean();
+      if (!election) {
+        return res.status(200).json({ success: true, data: null });
+      }
+
+      // Convert date fields to ISO strings for consistent frontend handling
+      const out = {
+        _id: election._id,
+        electionType: election.electionType,
+        nominationStartAt: election.nominationStartAt,
+        nominationEndAt: election.nominationEndAt,
+        delayBeforeStart: election.delayBeforeStart,
+        electionStartAt: election.electionStartAt,
+        electionEndAt: election.electionEndAt,
+        status: election.status,
+        createdAt: election.createdAt,
+        updatedAt: election.updatedAt,
+      };
+
+      return res.status(200).json({ success: true, data: out });
+    } catch (err) {
+      console.error("Error fetching latest election:", err);
+      return res.status(500).json({ success: false, message: "Server error" });
     }
   },
 };

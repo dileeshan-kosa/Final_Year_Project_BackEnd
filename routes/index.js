@@ -64,6 +64,19 @@ router.get("/get-blockchainVotes", voteControlWithBlockchain.getVotesDetails);
 router.get("/get-awsBackupVotes", ReAwsVotes.recoverAwsVotes);
 
 //new api call create election
-router.post("/create-election",createElectionCtrl.createElection) 
+router.post("/create-election", createElectionCtrl.createElection);
+
+//new api call get election details
+router.get("/get-electionstatus", createElectionCtrl.getLatestElection);
+
+// CronJob triggering function
+if (typeof createElectionCtrl.resumeSchedulerOnStartup === "function") {
+  // call but don't await blocking the require; log errors if any
+  createElectionCtrl
+    .resumeSchedulerOnStartup()
+    .catch((err) =>
+      console.error("Error resuming scheduler from routes import:", err)
+    );
+}
 
 module.exports = router;
