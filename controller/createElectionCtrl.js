@@ -254,6 +254,23 @@ const createElectionCtrl = {
       return res.status(500).json({ success: false, message: "Server error" });
     }
   },
+
+  // === Resume Scheduler on startup ===
+  resumeSchedulerOnStartup: async () => {
+    try {
+      if (activeCronJob) return;
+      const election = await electionModel.findOne()
+        .sort({ createdAt: -1 })
+        .lean();
+      if (!election) return;
+      await startScheduler();
+      console.log(
+        "🕒 Scheduler resumed on startup: checking every 30 seconds..."
+      );
+    } catch (err) {
+      console.error("Error resuming scheduler on startup:", err);
+    }
+  },
 };
 
 module.exports = createElectionCtrl;

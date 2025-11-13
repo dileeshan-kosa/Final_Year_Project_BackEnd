@@ -8,7 +8,7 @@ const createElectionSchema = new mongoose.Schema(
     delayBeforeStart: { type: String, required: true }, // e.g. "5min", "2h"
     electionStartAt: { type: Date, required: true },
     electionEndAt: { type: Date, required: true },
-    tatus: {
+    status: {
       type: String,
       enum: ["scheduled", "nomination", "waiting", "running", "completed"],
       default: "scheduled",
