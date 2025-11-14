@@ -54,6 +54,7 @@ const { contractABI } = require("./contract/contractABI");
 const Web3 = require("web3");
 const redisClient = require("./config/redis");
 const { uploadToS3 } = require("./utils/aws");
+// const { createElectionModel } = require("./models/createElectionModel")
 
 const app = express();
 
@@ -79,6 +80,7 @@ app.use("/api", router);
 app.use("/capture-fingerprint", fingerPrintRoutes);
 app.use("/logincapture-fingerprint", loginFingerPrintRoutes);
 app.use("/captured-vote", voteFingerpritRoutes);
+app.use("/api", require("./routes/awsRoutes"));
 
 const PORT = 8000 || process.env.PORT;
 
@@ -129,7 +131,27 @@ connectDB().then(() => {
           event.returnValues;
 
         // 🗳️ Define election folder name (can make this dynamic later)
-        const electionName = "presidential-2026"; // <--- Change this as needed
+        // const electionName = "presidential-2026"; // <--- Change this as needed
+        const createElectionModel = require("./models/createElectionModel");
+
+        let electionName = "unknown-election"; // fallback
+
+        try {
+          const latestElection = await createElectionModel
+            .findOne()
+            .sort({ createdAt: -1 })
+            .lean();
+          if (latestElection && latestElection.electionType) {
+            electionName = latestElection.electionType
+              .replace(/\s+/g, "-")
+              .toLowerCase();
+          }
+        } catch (err) {
+          console.error(
+            "⚠️ Could not fetch latest election type:",
+            err.message
+          );
+        }
 
         // ✅ Create backup payload
         const backupData = {

@@ -137,4 +137,29 @@ const getAllVotesFromBackup = async (electionName) => {
   }
 };
 
-module.exports = { uploadToS3, getAllVotesFromBackup };
+const listElectionFolders = async () => {
+  try {
+    const command = new ListObjectsV2Command({
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Delimiter: "/", // <-- IMPORTANT (list folders)
+    });
+
+    const response = await s3.send(command);
+
+    if (!response.CommonPrefixes) return [];
+
+    // extract folder names from prefixes
+    const folders = response.CommonPrefixes.map((prefixObj) => {
+      return prefixObj.Prefix.replace("/", ""); // remove trailing slash
+    });
+
+    console.log("📁 Election folders found:", folders);
+
+    return folders;
+  } catch (err) {
+    console.error("❌ Error listing S3 folders:", err);
+    return [];
+  }
+};
+
+module.exports = { uploadToS3, getAllVotesFromBackup, listElectionFolders };
