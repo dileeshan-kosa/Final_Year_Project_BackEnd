@@ -7,6 +7,7 @@ const { checkValidity } = require("../utils/checkValidity");
 const { decryptVote } = require("../utils/rsaDecrypt");
 const redisClient = require("../config/redis");
 const candidateTable = require("../models/candidatesModel");
+// const voterModel = require("../models/voterModel");
 
 // --- Secret Key Setup ---
 const secretKey = process.env.SECRET_KEY?.padEnd(32, "0");
@@ -67,6 +68,16 @@ const voteControlWithBlockchain = {
           from: accounts[0],
           gas: 5000000,
         });
+
+      //After vote is added to blockchain — mark voter as hasVoted = true
+      // await voterModel.findOneAndUpdate(
+      //   { nic: hashNIC },
+      //   { hasVoted: true },
+      //   { new: true }
+      // );
+
+      // voter.hasVoted = true;
+      // await voter.save();
       res.status(200).json({ message: "Vote added to blockchain" });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -434,7 +445,6 @@ const voteControlWithBlockchain = {
 
       //console.log("\n📊 Returning results:", results);
       return res.status(200).json(result);
-
     } catch (err) {
       // return res.status(500).json({ error: err.message });
       console.error("❌ Error in getVotesDetails:", err.message);

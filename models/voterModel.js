@@ -11,6 +11,10 @@ const voterSchema = new mongoose.Schema({
   gender: String,
   district: String,
   fingerprint: String,
+  hasVoted: {
+    type: Boolean,
+    default: false,
+  }
 });
 
 const voterModel = mongoose.model("voter", voterSchema);

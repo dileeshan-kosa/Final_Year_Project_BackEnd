@@ -55,7 +55,6 @@ async function voteConfirmFingerprintData(req, res) {
           console.error("❌ Error opening port:", err.message);
           reject(err);
         } else {
-          //   console.log(`✅ Serial port COM9 open.`);
           resolve();
         }
       });

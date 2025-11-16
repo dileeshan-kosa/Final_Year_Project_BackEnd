@@ -147,13 +147,28 @@ async function getLoginFingerPrintData(req, res) {
     );
     if (matchResponse[9] === 0x00) {
       console.log("✅ Fingerprint matched with:", voter.name);
+      if (voter.hasVoted)
+        return res.status(403).json({
+          permission: false,
+          message: "You have already voted.",
+          voter: {
+            name: voter.name,
+            nic: voter.nic,
+            district: voter.district,
+            fingerprint: voter.fingerprint,
+            hasVoted: voter.hasVoted,
+          },
+        });
+
       return res.status(200).json({
         message: "Fingerprint matched.",
+        permission: true,
         voter: {
           name: voter.name,
           nic: voter.nic,
           district: voter.district,
           fingerprint: voter.fingerprint,
+          hasVoted: voter.hasVoted,
         },
       });
     }

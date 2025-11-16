@@ -18,6 +18,22 @@ async function voterSignInController(req, res) {
     if (!voter) {
       throw new Error("Voter not found");
     }
+
+    if (voter.hasVoted) throw new Error("You have already voted");
+
+    // ✅ Generate temporary token
+    // const token = jwt.sign({ voterId: voter._id }, process.env.SECRET_KEY, {
+    //   expiresIn: "15m",
+    // });
+    // const token = jwt.sign(
+    //   {
+    //     voterId: voter._id,
+    //     hasVoted: voter.hasVoted, // 👈 include this
+    //   },
+    //   process.env.SECRET_KEY,
+    //   { expiresIn: "15m" }
+    // );
+    // res.json({ token, message: "Login successful" });
   } catch (err) {
     res.json({
       message: err.message || err,

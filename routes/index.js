@@ -20,6 +20,7 @@ const voteControlWithBlockchain = require("../controller/voteControlWithBlockcha
 const { publicKeyPem } = require("../utils/rsaKeys");
 const ReAwsVotes = require("../controller/awsVotesRecover");
 const createElectionCtrl = require("../controller/createElectionCtrl");
+const voterMongodbClean = require("../controller/voterDetails");
 
 router.post("/signupvoter", voterSignInController);
 
@@ -35,6 +36,9 @@ router.get("/admin-details", authToken, adminDetailsController);
 router.get("/adminLogout", adminLogout);
 
 router.get("/capture-fingerprint", manageVoterDetails.getVoders);
+
+// new api call hasVoted column updated
+router.post("/updated-hasVoted", voterMongodbClean.getNicCleanMongodb);
 
 //new api call Manage Voters
 router.post("/manage-voters", manageVoterDetails.createVoterDetails);
