@@ -3224,53 +3224,64 @@ async function attemptDirectMatch(port, templateId, storedFingerprintBase64, ret
       }
       console.log("✅ Template created in Buffer 1");
 
-      // Delay before search (let sensor process the template)
+      // Delay before loading stored template
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // 3️⃣ Use SEARCH command - searches Buffer 1 against all stored templates
-      // NOTE: SEARCH only uses Buffer 1, no need for second capture or Buffer 2
-      console.log("🔍 Step 3: Searching for fingerprint match in sensor memory...");
-      // SEARCH command can take longer - increase timeout to 10 seconds
-      const searchResp = await sendCommand(
+      // 3️⃣ Load stored template into Buffer 2
+      // Try MongoDB template first (most reliable - exact template data), fallback to sensor memory
+      console.log(`📥 Step 3: Loading stored template into Buffer 2...`);
+      
+      const templateLoaded = await loadStoredTemplateToBuffer2(port, templateId, storedFingerprintBase64);
+      
+      if (!templateLoaded) {
+        throw new Error("Failed to load stored template into Buffer 2");
+      }
+
+      // Delay before matching
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // 4️⃣ Use MATCH command - directly compare Buffer 1 (live) vs Buffer 2 (stored)
+      // This is more reliable than SEARCH for matching merged templates
+      console.log("🔍 Step 4: Matching Buffer 1 (live) vs Buffer 2 (stored)...");
+      const matchResp = await sendCommand(
         port,
-        COMMANDS.search,
-        "Search Fingerprint",
-        10000,  // Increased timeout to 10 seconds
-        3000    // Increased wait time to 3 seconds
+        COMMANDS.match,
+        "Match Fingerprints",
+        6000,
+        2000
       );
       
       // Debug: Log full response
-      console.log(`📊 Search Response (hex): ${searchResp.toString('hex')}`);
-      console.log(`📊 Search Response (bytes): [${Array.from(searchResp).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
-      console.log(`📊 Response length: ${searchResp.length}, Confirmation byte[9]: 0x${searchResp[9]?.toString(16) || 'undefined'}`);
+      console.log(`📊 Match Response (hex): ${matchResp.toString('hex')}`);
+      console.log(`📊 Match Response (bytes): [${Array.from(matchResp).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
+      console.log(`📊 Response length: ${matchResp.length}, Confirmation byte[9]: 0x${matchResp[9]?.toString(16) || 'undefined'}`);
       
-      if (searchResp[9] !== 0x00) {
-        // Search failed - no match found
+      if (matchResp[9] !== 0x00) {
+        // Match failed - extract match score
         let matchScore = 0;
-        if (searchResp.length >= 14) {
-          matchScore = (searchResp[12] << 8) | searchResp[13];
-          console.log(`📊 Match score from bytes 12-13: ${matchScore}`);
+        if (matchResp.length >= 12) {
+          matchScore = (matchResp[10] << 8) | matchResp[11];
+          console.log(`📊 Match score from bytes 10-11: ${matchScore}`);
         }
-        throw new Error(`Fingerprint not found in sensor memory. Match score: ${matchScore}`);
+        
+        const errorCode = matchResp[9];
+        if (errorCode === 0x08) {
+          throw new Error(`Fingerprint does not match. Match score: ${matchScore}`);
+        } else {
+          throw new Error(`Match command failed. Error code: 0x${errorCode.toString(16)}, Match score: ${matchScore}`);
+        }
       }
 
-      // Success - Extract template ID and match score from search response
-      // Search response format: bytes 10-11 = template ID, bytes 12-13 = match score
-      let foundTemplateId = 0;
+      // Success - Extract match score from match response
+      // Match response format: bytes 10-11 = match score
       let matchScore = 0;
-      if (searchResp.length >= 14) {
-        foundTemplateId = (searchResp[10] << 8) | searchResp[11];
-        matchScore = (searchResp[12] << 8) | searchResp[13];
+      if (matchResp.length >= 12) {
+        matchScore = (matchResp[10] << 8) | matchResp[11];
       }
       
-      console.log(`✅ Fingerprint found! Template ID: ${foundTemplateId}, Match score: ${matchScore}`);
+      console.log(`✅ Fingerprint matched! Match score: ${matchScore}`);
       
-      // Verify the found template ID matches what we're looking for
-      if (foundTemplateId !== templateId) {
-        throw new Error(`Template ID mismatch. Found: ${foundTemplateId}, Expected: ${templateId}`);
-      }
-      
-      return { success: true, matchScore, templateId: foundTemplateId };
+      return { success: true, matchScore, templateId: templateId };
 
     } catch (err) {
       console.warn(`⚠️ Attempt ${attempt} failed: ${err.message}`);
