@@ -2913,6 +2913,10 @@ const COMMANDS = {
   match: packet([
     0xef, 0x01, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x03, 0x03, 0x00, 0x07,
   ]), // Match Buffer 1 and Buffer 2
+  search: packet([
+    0xef, 0x01, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x08, 0x04, 0x01, 0x00,
+    0x00, 0x00, 0x00, 0x0e,
+  ]), // Search Buffer 1 against all stored templates
 };
 
 // ---- Safe Serial Command Sender ----
@@ -3011,44 +3015,40 @@ async function uploadTemplateToBuffer2(port, fingerprintBase64) {
   console.log(`📦 Template buffer size: ${fingerprintBuffer.length} bytes`);
   console.log(`📦 Template data preview (first 20 bytes): ${fingerprintBuffer.slice(0, 20).toString('hex')}`);
   
-  // Build header exactly as in voterConfirmWithFingerprint.js
-  // [0xef, 0x01, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x07, 0x09, 0x02, checksum_high, checksum_low]
-  // Length = 0x07 (which is 0x09 + 0x02 = 11, but they use 0x07 in the example)
-  // Actually, looking at the code: length = 0x07 means 7 bytes total (0x09 + 0x02 + checksum)
-  // But that doesn't include the template data...
-  
-  // Let me recalculate: The length should include: 0x09 + 0x02 + template_data
-  // So length = 2 + template_data.length
+  // Build header EXACTLY as in voterConfirmWithFingerprint.js (which works!)
+  // Length = 0x07 means: 0x09 + 0x02 = 11 bytes, but they use 0x07 (might be excluding something)
+  // Actually, let's calculate proper length: 2 (command + buffer) + template length
   const dataLength = 2 + fingerprintBuffer.length; // 0x09 + 0x02 + template data
   const lengthHigh = (dataLength >> 8) & 0xff;
   const lengthLow = dataLength & 0xff;
   
-  // Calculate proper checksum: sum of all bytes from PID to end of data
-  // [0x01, length_high, length_low, 0x09, 0x02, ...all template bytes]
+  const header = Buffer.from([
+    0xef, 0x01, 0xff, 0xff, 0xff, 0xff, // Header
+    0x01, // Package ID
+    lengthHigh, lengthLow, // Length (proper calculation)
+    0x09, // UpChar command
+    0x02, // Buffer ID (Buffer 2)
+    0x00, 0x00 // Checksum placeholder
+  ]);
+  
+  // Calculate checksum: sum of [0x01, length_high, length_low, 0x09, 0x02, ...all template bytes]
   let checksum = 0x01 + lengthHigh + lengthLow + 0x09 + 0x02;
   for (let i = 0; i < fingerprintBuffer.length; i++) {
     checksum += fingerprintBuffer[i];
   }
   checksum = checksum & 0xffff; // Keep it 16-bit
   
-  const header = Buffer.from([
-    0xef, 0x01, 0xff, 0xff, 0xff, 0xff, // Header
-    0x01, // Package ID
-    lengthHigh, lengthLow, // Length (includes 0x09, 0x02, and template data)
-    0x09, // UpChar command
-    0x02, // Buffer ID (Buffer 2)
-    (checksum >> 8) & 0xff, // Checksum high byte
-    checksum & 0xff // Checksum low byte
-  ]);
+  // Write checksum to header
+  header.writeUInt16BE(checksum, 10);
   
   // Combine header + fingerprint data
   const uploadCmd = Buffer.concat([header, fingerprintBuffer]);
   
   console.log(`📤 Upload command total size: ${uploadCmd.length} bytes`);
-  console.log(`📤 Upload command header (hex): ${header.toString('hex')}`);
-  console.log(`📤 Calculated checksum: 0x${checksum.toString(16).padStart(4, '0')}`);
+  console.log(`📤 Data length: ${dataLength}, Checksum: 0x${checksum.toString(16).padStart(4, '0')}`);
   
-  const uploadResp = await sendCommand(port, uploadCmd, "Upload Template to Buffer 2", 10000, 3000);
+  // Use MUCH longer timeout for large template uploads (769 bytes needs time)
+  const uploadResp = await sendCommand(port, uploadCmd, "Upload Template to Buffer 2", 20000, 8000);
   
   return uploadResp;
 }
@@ -3138,11 +3138,11 @@ async function attemptDirectMatch(port, templateId, storedFingerprintBase64, ret
     try {
       console.log(`🔁 Direct match attempt ${attempt} for template ID: ${templateId}`);
 
-      // IMPORTANT: Use same approach as registration - capture TWICE and merge
-      // This ensures template format matches what was stored during registration
+      // SIMPLIFIED: Single capture approach (like voterConfirmWithFingerprint.js)
+      // A single capture template can match the stored template
       
-      // 1️⃣ Capture first fingerprint image
-      console.log("📸 Step 1a: Capturing first fingerprint image...");
+      // 1️⃣ Capture fingerprint image (ONCE - no merge needed)
+      console.log("📸 Step 1: Capturing fingerprint image...");
       const img1Resp = await sendCommand(
         port,
         COMMANDS.genImg,
@@ -3158,10 +3158,10 @@ async function attemptDirectMatch(port, templateId, storedFingerprintBase64, ret
         }
         throw new Error(`Fingerprint capture failed. Sensor code: 0x${errorCode.toString(16)}`);
       }
-      console.log("✅ First fingerprint captured successfully");
+      console.log("✅ Fingerprint captured successfully");
 
-      // Convert first image to template in Buffer 1
-      console.log("🔄 Step 1b: Converting first image to template (Buffer 1)...");
+      // 2️⃣ Convert image to template in Buffer 1
+      console.log("🔄 Step 2: Converting image to template (Buffer 1)...");
       const buf1Resp = await sendCommand(
         port,
         COMMANDS.img2Tz1,
@@ -3177,122 +3177,54 @@ async function attemptDirectMatch(port, templateId, storedFingerprintBase64, ret
         }
         throw new Error(`Template conversion failed. Sensor code: 0x${errorCode.toString(16)}`);
       }
-      console.log("✅ First template created in Buffer 1");
+      console.log("✅ Template created in Buffer 1");
 
-      // Delay before second capture
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      console.log("📸 Step 1c: Please place the SAME finger again for second capture...");
-
-      // 2️⃣ Capture second fingerprint image
-      const img2Resp = await sendCommand(
-        port,
-        COMMANDS.genImg,
-        "Capture Fingerprint #2",
-        6000,
-        2000
-      );
-      
-      if (img2Resp[9] !== 0x00) {
-        const errorCode = img2Resp[9];
-        if (errorCode === 0x02) {
-          throw new Error("No finger detected on second capture. Please place your finger again.");
-        }
-        throw new Error(`Second fingerprint capture failed. Sensor code: 0x${errorCode.toString(16)}`);
-      }
-      console.log("✅ Second fingerprint captured successfully");
-
-      // Convert second image to template in Buffer 2
-      console.log("🔄 Step 1d: Converting second image to template (Buffer 2)...");
-      const buf2Resp = await sendCommand(
-        port,
-        COMMANDS.img2Tz2,
-        "Convert to Buffer 2",
-        6000,
-        2000
-      );
-      
-      if (buf2Resp[9] !== 0x00) {
-        const errorCode = buf2Resp[9];
-        if (errorCode === 0x06) {
-          throw new Error("Second fingerprint image too messy. Please try again.");
-        }
-        throw new Error(`Second template conversion failed. Sensor code: 0x${errorCode.toString(16)}`);
-      }
-      console.log("✅ Second template created in Buffer 2");
-
-      // 3️⃣ Merge buffers (same as registration)
-      console.log("🔀 Step 1e: Merging templates (same as registration)...");
-      const mergeResp = await sendCommand(
-        port,
-        COMMANDS.regModel,
-        "Merge Buffers",
-        6000,
-        2000
-      );
-      
-      if (mergeResp[9] !== 0x00) {
-        throw new Error(`Template merge failed. Sensor code: 0x${mergeResp[9].toString(16)}`);
-      }
-      console.log("✅ Templates merged into Buffer 1 (merged template)");
-
-      // Delay before loading stored template
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // 4️⃣ Load stored template into Buffer 2
-      // Try MongoDB template first (more reliable), fallback to sensor memory
-      console.log(`📥 Step 2: Loading stored template into Buffer 2...`);
-      
-      // Get template from MongoDB (passed as parameter)
-      const templateLoaded = await loadStoredTemplateToBuffer2(port, templateId, storedFingerprintBase64);
-      
-      if (!templateLoaded) {
-        throw new Error("Failed to load stored template into Buffer 2");
-      }
-
-      // Delay before matching
+      // Delay before search (let sensor process the template)
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      // 5️⃣ Match Buffer 1 (merged live template) with Buffer 2 (stored merged template)
-      // Both are now in the same format (merged templates)
-      console.log("🔍 Step 3: Matching merged templates (Buffer 1 vs Buffer 2)...");
-      const matchResp = await sendCommand(
+      // 3️⃣ Use SEARCH command - searches Buffer 1 against all stored templates
+      // NOTE: SEARCH only uses Buffer 1, no need for second capture or Buffer 2
+      console.log("🔍 Step 3: Searching for fingerprint match in sensor memory...");
+      const searchResp = await sendCommand(
         port,
-        COMMANDS.match,
-        "Match Fingerprints",
+        COMMANDS.search,
+        "Search Fingerprint",
         6000,
         2000
       );
       
       // Debug: Log full response
-      console.log(`📊 Match Response (hex): ${matchResp.toString('hex')}`);
-      console.log(`📊 Match Response (bytes): [${Array.from(matchResp).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
-      console.log(`📊 Response length: ${matchResp.length}, Confirmation byte[9]: 0x${matchResp[9]?.toString(16) || 'undefined'}`);
+      console.log(`📊 Search Response (hex): ${searchResp.toString('hex')}`);
+      console.log(`📊 Search Response (bytes): [${Array.from(searchResp).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ')}]`);
+      console.log(`📊 Response length: ${searchResp.length}, Confirmation byte[9]: 0x${searchResp[9]?.toString(16) || 'undefined'}`);
       
-      if (matchResp[9] !== 0x00) {
-        // Extract match score - R307 returns score in bytes 10-11 when match fails
+      if (searchResp[9] !== 0x00) {
+        // Search failed - no match found
         let matchScore = 0;
-        if (matchResp.length >= 12) {
-          matchScore = (matchResp[10] << 8) | matchResp[11];
-          console.log(`📊 Match score from bytes 10-11: ${matchScore}`);
+        if (searchResp.length >= 14) {
+          matchScore = (searchResp[12] << 8) | searchResp[13];
+          console.log(`📊 Match score from bytes 12-13: ${matchScore}`);
         }
-        
-        // Check if it's a "no match" error (0x08) or other error
-        const errorCode = matchResp[9];
-        if (errorCode === 0x08) {
-          throw new Error(`Fingerprint does not match (no match found). Match score: ${matchScore}`);
-        } else {
-          throw new Error(`Match command failed. Error code: 0x${errorCode.toString(16)}, Match score: ${matchScore}`);
-        }
+        throw new Error(`Fingerprint not found in sensor memory. Match score: ${matchScore}`);
       }
 
-      // Success - Extract match score (bytes 10-11 contain the score)
+      // Success - Extract template ID and match score from search response
+      // Search response format: bytes 10-11 = template ID, bytes 12-13 = match score
+      let foundTemplateId = 0;
       let matchScore = 0;
-      if (matchResp.length >= 12) {
-        matchScore = (matchResp[10] << 8) | matchResp[11];
+      if (searchResp.length >= 14) {
+        foundTemplateId = (searchResp[10] << 8) | searchResp[11];
+        matchScore = (searchResp[12] << 8) | searchResp[13];
       }
       
-      console.log(`✅ Fingerprint matched! Match score: ${matchScore}`);
-      return { success: true, matchScore };
+      console.log(`✅ Fingerprint found! Template ID: ${foundTemplateId}, Match score: ${matchScore}`);
+      
+      // Verify the found template ID matches what we're looking for
+      if (foundTemplateId !== templateId) {
+        throw new Error(`Template ID mismatch. Found: ${foundTemplateId}, Expected: ${templateId}`);
+      }
+      
+      return { success: true, matchScore, templateId: foundTemplateId };
 
     } catch (err) {
       console.warn(`⚠️ Attempt ${attempt} failed: ${err.message}`);
