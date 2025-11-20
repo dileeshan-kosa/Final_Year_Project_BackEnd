@@ -11,6 +11,7 @@ const voterSchema = new mongoose.Schema({
   gender: String,
   district: String,
   fingerprint: String,
+  fingerprintTemplateId: Number,
   hasVoted: {
     type: Boolean,
     default: false,

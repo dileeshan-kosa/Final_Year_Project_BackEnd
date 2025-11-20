@@ -250,3 +250,217 @@ module.exports = getFingerPrintData;
     //   console.log("❌ Fingerprint too messy (retry)");
     //   return;
     // }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+// const { SerialPort } = require("serialport");
+
+// const port = new SerialPort({
+//   path: "COM9", // Change to your sensor port
+//   baudRate: 57600,
+//   autoOpen: false,
+// });
+
+// // Helper to send command
+// function sendCommand(command, description) {
+//   return new Promise((resolve, reject) => {
+//     let responseData = Buffer.alloc(0);
+
+//     const handleData = (data) => {
+//       responseData = Buffer.concat([responseData, data]);
+//       // The R307 response is usually 12 bytes
+//       if (responseData.length >= 12) {
+//         port.off("data", handleData);
+//         resolve(responseData);
+//       }
+//     };
+
+//     port.on("data", handleData);
+
+//     port.write(command, (err) => {
+//       if (err) reject(`Error sending ${description}: ${err}`);
+//       else console.log(`📝 ${description} command sent`);
+//     });
+//   });
+// }
+
+// // Open port helper
+// async function openPort() {
+//   return new Promise((resolve, reject) => {
+//     if (port.isOpen) return resolve();
+//     port.open((err) => {
+//       if (err) return reject(err);
+//       console.log("✅ Serial port open");
+//       resolve();
+//     });
+//   });
+// }
+
+// // 1️⃣ Check template count
+// async function checkTemplateCount() {
+//   try {
+//     await openPort();
+
+//     // Command to get template count
+//     const command = Buffer.from([
+//       0xef, 0x01, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x03, 0x1d, 0x00, 0x21
+//     ]);
+
+//     const response = await sendCommand(command, "Get template count");
+//     // Template count is usually in bytes 9 & 10
+//     const templateCount = response[9];
+//     console.log(`📊 Templates stored: ${templateCount} / 127`);
+//     return templateCount;
+//   } catch (err) {
+//     console.error("Error checking template count:", err);
+//   } finally {
+//     if (port.isOpen) port.close(() => console.log("🔌 Serial port closed"));
+//   }
+// }
+
+// // 2️⃣ Clear all templates
+// async function clearAllTemplates() {
+//   try {
+//     await openPort();
+
+//     const command = Buffer.from([
+//       0xef, 0x01, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x03, 0x0d, 0x00, 0x11
+//     ]);
+
+//     const response = await sendCommand(command, "Clear all templates");
+//     if (response[9] === 0x00) {
+//       console.log("✅ All templates cleared successfully");
+//       return true;
+//     } else {
+//       console.log("❌ Failed to clear templates. Sensor response:", response[9]);
+//       return false;
+//     }
+//   } catch (err) {
+//     console.error("Error clearing templates:", err);
+//   } finally {
+//     if (port.isOpen) port.close(() => console.log("🔌 Serial port closed"));
+//   }
+// }
+
+// // Example usage
+// (async () => {
+//   await checkTemplateCount();
+//   // await clearAllTemplates(); // Uncomment to clear all templates
+// })();
+
+
+
+
+
+
+
+// sensor template delete command 
+
+
+// const { SerialPort } = require("serialport");
+
+// // ------------------------------
+// // SERIAL PORT CONFIG
+// // ------------------------------
+// const port = new SerialPort({
+//   path: "COM9",
+//   baudRate: 57600,
+//   autoOpen: false,
+// });
+
+// // ------------------------------
+// // GENERIC SEND COMMAND
+// // ------------------------------
+// function sendCommand(command, description) {
+//   return new Promise((resolve, reject) => {
+//     let responseData = Buffer.alloc(0);
+
+//     const handleData = (data) => {
+//       responseData = Buffer.concat([responseData, data]);
+
+//       // Full packet length = 9 + payload length (bytes [7] & [8])
+//       if (
+//         responseData.length >= 9 &&
+//         responseData.length >= 9 + ((responseData[7] << 8) | responseData[8])
+//       ) {
+//         port.off("data", handleData);
+//         resolve(responseData);
+//       }
+//     };
+
+//     port.on("data", handleData);
+
+//     port.write(command, (err) => {
+//       if (err) {
+//         console.error(`❌ Error sending ${description}:`, err);
+//         return reject(err);
+//       }
+//       console.log(`📝 ${description} Command Sent!`);
+//     });
+//   });
+// }
+
+// // ------------------------------
+// // REGISTRATION CONTROLLER
+// // ------------------------------
+// async function getFingerPrintData(req, res) {
+//   try {
+//     // Open Serial Port
+//     await new Promise((resolve, reject) => {
+//       port.open((err) => {
+//         if (err) return reject(err);
+//         console.log("🔌 Serial Port Opened");
+//         resolve();
+//       });
+//     });
+
+//     // Empty library command: 0x0D
+//     const emptyLibraryCmd = Buffer.from([
+//       0xef, 0x01, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x03, 0x0d, 0x00, 0x11,
+//     ]);
+
+//     const resp = await sendCommand(emptyLibraryCmd, "Delete All Templates");
+
+//     if (resp[9] === 0x00) {
+//       console.log("🗑️ All templates deleted successfully from sensor");
+//       return res
+//         .status(200)
+//         .json({ message: "All templates deleted successfully" });
+//     } else {
+//       console.log(
+//         "❌ Failed to delete all templates. Sensor response:",
+//         resp[9]
+//       );
+//       return res
+//         .status(500)
+//         .json({ message: "Failed to delete all templates" });
+//     }
+//   } catch (err) {
+//     console.log("❌ Error:", err);
+//     res.status(500).json({ error: err.message });
+//   } finally {
+//     if (port.isOpen) port.close(() => console.log("🔌 Port Closed"));
+//   }
+// }
+
+// module.exports = getFingerPrintData;

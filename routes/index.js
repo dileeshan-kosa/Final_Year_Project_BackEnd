@@ -21,6 +21,7 @@ const { publicKeyPem } = require("../utils/rsaKeys");
 const ReAwsVotes = require("../controller/awsVotesRecover");
 const createElectionCtrl = require("../controller/createElectionCtrl");
 const voterMongodbClean = require("../controller/voterDetails");
+const generateReportCtrl = require("../controller/generateReportCtrl");
 
 router.post("/signupvoter", voterSignInController);
 
@@ -82,5 +83,8 @@ if (typeof createElectionCtrl.resumeSchedulerOnStartup === "function") {
       console.error("Error resuming scheduler from routes import:", err)
     );
 }
+
+// Generate & download final report
+router.get("/generate-report", generateReportCtrl.generateReport);
 
 module.exports = router;

@@ -6,7 +6,15 @@ const router = require("../routes");
 const manageVoterDetails = {
   createVoterDetails: async (req, res) => {
     try {
-      const { name, nic, dob, gender, district, fingerprint } = req.body;
+      const {
+        name,
+        nic,
+        dob,
+        gender,
+        district,
+        fingerprint,
+        fingerprintTemplateId,
+      } = req.body;
 
       // Hash the fingerprint value using bcrypt
       // const hashedFingerprint = await bcrypt.hash(fingerprint, 10);
@@ -18,6 +26,7 @@ const manageVoterDetails = {
         gender,
         district,
         fingerprint: fingerprint, // Store the hashed fingerprint
+        fingerprintTemplateId,
       });
       const savedUser = await newVoterDetails.save();
 
