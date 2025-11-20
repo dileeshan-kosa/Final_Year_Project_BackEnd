@@ -2913,10 +2913,20 @@ const COMMANDS = {
   match: packet([
     0xef, 0x01, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x03, 0x03, 0x00, 0x07,
   ]), // Match Buffer 1 and Buffer 2
+  // Search command: Search Buffer 1 against all stored templates
+  // Format: Header(6) + PackageID(1) + Length(2) + Command(1) + BufferID(1) + StartPage(2) + PageNum(2) + Checksum(2)
+  // Checksum = PackageID + Length_H + Length_L + Command + BufferID + StartPage_H + StartPage_L + PageNum_H + PageNum_L
+  // = 0x01 + 0x00 + 0x08 + 0x04 + 0x01 + 0x00 + 0x00 + 0x00 + 0x00 = 0x0E
   search: packet([
-    0xef, 0x01, 0xff, 0xff, 0xff, 0xff, 0x01, 0x00, 0x08, 0x04, 0x01, 0x00,
-    0x00, 0x00, 0x00, 0x0e,
-  ]), // Search Buffer 1 against all stored templates
+    0xef, 0x01, 0xff, 0xff, 0xff, 0xff, // Header
+    0x01, // Package ID
+    0x00, 0x08, // Length (8 bytes: command + params)
+    0x04, // Command: Search
+    0x01, // Buffer ID (Buffer 1)
+    0x00, 0x00, // Start page (0)
+    0x00, 0x00, // Page number (0 = search all)
+    0x00, 0x0e, // Checksum
+  ]),
 };
 
 // ---- Safe Serial Command Sender ----
@@ -2929,33 +2939,62 @@ async function sendCommand(
 ) {
   return new Promise((resolve, reject) => {
     let response = Buffer.alloc(0);
+    let responseTimer = null;
 
     const onData = (data) => {
       response = Buffer.concat([response, data]);
-      // Wait for complete response (minimum 12 bytes for R307)
-      if (response.length >= 12) {
-        clearTimeout(timer);
-        port.off("data", onData);
-        port.off("close", onClose);
-        resolve(response);
+      console.log(`📥 Received ${data.length} bytes for "${label}", total: ${response.length} bytes`);
+      
+      // For search command, expect 16 bytes (12 header + 4 data)
+      // For other commands, expect at least 12 bytes
+      const expectedLength = label.includes("Search") ? 16 : 12;
+      
+      if (response.length >= expectedLength) {
+        // Clear the response timer
+        if (responseTimer) {
+          clearTimeout(responseTimer);
+          responseTimer = null;
+        }
+        
+        // Wait a bit more to ensure we got the complete response
+        setTimeout(() => {
+          clearTimeout(timer);
+          port.off("data", onData);
+          port.off("close", onClose);
+          resolve(response);
+        }, 100);
+      } else {
+        // Reset response timer - if no data for 200ms, consider response complete
+        if (responseTimer) clearTimeout(responseTimer);
+        responseTimer = setTimeout(() => {
+          if (response.length >= 12) {
+            clearTimeout(timer);
+            port.off("data", onData);
+            port.off("close", onClose);
+            resolve(response);
+          }
+        }, 200);
       }
     };
 
     const onClose = () => {
       clearTimeout(timer);
+      if (responseTimer) clearTimeout(responseTimer);
       port.off("data", onData);
       port.off("close", onClose);
       reject(new Error(`${label}: Port closed unexpectedly`));
     };
 
     const timer = setTimeout(() => {
+      if (responseTimer) clearTimeout(responseTimer);
       port.off("data", onData);
       port.off("close", onClose);
       // Return partial response if we have at least 12 bytes
       if (response.length >= 12) {
+        console.log(`⚠️ Timeout but returning partial response (${response.length} bytes)`);
         resolve(response);
       } else {
-        reject(new Error(`${label}: Timeout waiting for response`));
+        reject(new Error(`${label}: Timeout waiting for response (received ${response.length} bytes)`));
       }
     }, timeoutMs);
 
@@ -2965,11 +3004,17 @@ async function sendCommand(
     port.write(command, (err) => {
       if (err) {
         clearTimeout(timer);
+        if (responseTimer) clearTimeout(responseTimer);
         port.off("data", onData);
         port.off("close", onClose);
         return reject(new Error(`${label}: Failed to send command`));
       }
       console.log(`📝 ${label} command sent`);
+      
+      // Small delay after sending to let sensor process
+      setTimeout(() => {
+        // Response will be handled by onData
+      }, waitMs);
     });
   });
 }
@@ -3185,12 +3230,13 @@ async function attemptDirectMatch(port, templateId, storedFingerprintBase64, ret
       // 3️⃣ Use SEARCH command - searches Buffer 1 against all stored templates
       // NOTE: SEARCH only uses Buffer 1, no need for second capture or Buffer 2
       console.log("🔍 Step 3: Searching for fingerprint match in sensor memory...");
+      // SEARCH command can take longer - increase timeout to 10 seconds
       const searchResp = await sendCommand(
         port,
         COMMANDS.search,
         "Search Fingerprint",
-        6000,
-        2000
+        10000,  // Increased timeout to 10 seconds
+        3000    // Increased wait time to 3 seconds
       );
       
       // Debug: Log full response
